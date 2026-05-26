@@ -1,0 +1,15 @@
+May 25 10:01:01 server sshd[1234]: Failed password for root from 192.168.1.105 port 22 ssh2
+May 25 10:01:02 server sshd[1235]: Failed password for root from 192.168.1.105 port 22 ssh2
+May 25 10:01:03 server sshd[1236]: Failed password for admin from 192.168.1.105 port 22 ssh2
+May 25 10:01:04 server sshd[1237]: Failed password for root from 10.0.0.22 port 22 ssh2
+May 25 10:02:11 server sshd[1238]: Failed password for usuario from 203.0.113.45 port 22 ssh2
+May 25 10:02:12 server sshd[1239]: Failed password for root from 203.0.113.45 port 22 ssh2
+May 25 10:02:13 server sshd[1240]: Failed password for root from 203.0.113.45 port 22 ssh2
+May 25 10:02:14 server sshd[1241]: Failed password for root from 203.0.113.45 port 22 ssh2
+May 25 10:03:00 server sshd[1242]: Accepted password for diego from 192.168.1.10 port 22 ssh2
+May 25 10:03:45 server sshd[1243]: Failed password for test from 198.51.100.7 port 22 ssh2
+May 25 10:03:46 server sshd[1244]: Failed password for test from 198.51.100.7 port 22 ssh2
+May 25 10:04:00 server sshd[1245]: Failed password for root from 192.168.1.105 port 22 ssh2
+May 25 10:04:01 server sshd[1246]: Failed password for root from 192.168.1.105 port 22 ssh2
+May 25 10:04:02 server sshd[1247]: Failed password for root from 192.168.1.105 port 22 ssh2
+May 25 10:05:00 server sshd[1248]: Accepted password for diego from 192.168.1.10 port 22 ssh2
