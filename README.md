@@ -43,6 +43,23 @@ IPs con intentos fallidos:
 - Python 3
 - Módulos: `re`, `collections`, `datetime`
 
+## v2.0 — Integración con Grafana Loki
+
+LogWatcher evolucionó de un analizador local a un componente
+de arquitectura SIEM real:
+
+- Mapeo de eventos a códigos estándar IMDRF
+- Anonimización de usuarios con SHA-256 (cumplimiento GDPR/LFPDPPP)
+- Envío estructurado de eventos a Grafana Loki
+- Dashboard en tiempo real con contadores y logs
+
+### Stack
+- Python 3
+- Grafana Loki — almacenamiento de logs
+- Grafana — visualización y dashboards
+- Docker — despliegue del stack
+
+
 ## Autor
 
 Diego Álvarez — [LinkedIn](https://linkedin.com/in/diego-armando-álvarez-valero-b248411b6)
