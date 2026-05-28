@@ -1,11 +1,13 @@
 # LogWatcher — Analizador de logs de seguridad
 # Autor: Diego Álvarez
-# v2.0 — Integración con Grafana Loki
+# v2.1 — Monitoreo continuo en tiempo real
 
 import re
 import hashlib
 import logging
 import logging_loki
+import time
+import os
 from collections import Counter
 from datetime import datetime
 
@@ -22,9 +24,14 @@ logger = logging.getLogger("logwatcher")
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
+# ========== CONFIGURACIÓN ==========
+# Cambia esta ruta a /var/log/auth.log para entorno real
+LOG_FILE = "sample_auth.log"
+UMBRAL_FUERZA_BRUTA = 3  # Intentos para considerar fuerza bruta
+
 # ========== MAPEO DE EVENTOS ESTÁNDAR ==========
 mapeo_seguridad = {
-    "intento_fallido": {"codigo": "IMDRF_B0101", "level": "WARNING"},
+    "intento_fallido": {"codigo": "IMDRF_B0101",   "level": "WARNING"},
     "fuerza_bruta":    {"codigo": "IMDRF_A050101", "level": "CRITICAL"},
     "login_exitoso":   {"codigo": "IMDRF_C020301", "level": "INFO"},
 }
@@ -53,60 +60,68 @@ def reportar_evento(ip, tipo_evento, usuario):
     else:
         logger.info(mensaje, extra={"tags": payload})
 
-    print(f"  → Enviado a Loki: {mensaje}")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] → {mensaje}")
 
-# ========== ANÁLISIS DEL LOG ==========
-LOG_FILE = "sample_auth.log"
+# ========== FUNCIÓN: PROCESAR LÍNEA ==========
+intentos_por_ip = Counter()
 
-intentos_fallidos = []
-logins_exitosos = []
-ips_atacantes = []
-ips_por_usuario = {}
+def procesar_linea(linea):
+    ip_match   = re.search(r"from (\d+\.\d+\.\d+\.\d+)", linea)
+    user_match = re.search(r"for (\w+) from", linea)
 
-print("=" * 55)
-print("     LOGWATCHER v2.0 — INTEGRACIÓN CON LOKI")
-print("=" * 55)
-print("\nAnalizando y enviando eventos...\n")
+    ip      = ip_match.group(1)   if ip_match   else "unknown"
+    usuario = user_match.group(1) if user_match else "unknown"
 
-with open(LOG_FILE, "r") as f:
-    for linea in f:
+    if "Failed password" in linea:
+        intentos_por_ip[ip] += 1
+        reportar_evento(ip, "intento_fallido", usuario)
 
-        ip_match = re.search(r"from (\d+\.\d+\.\d+\.\d+)", linea)
-        user_match = re.search(r"for (\w+) from", linea)
+        # Detectar fuerza bruta en tiempo real
+        if intentos_por_ip[ip] == UMBRAL_FUERZA_BRUTA:
+            print(f"\n  ⚠️  ALERTA: Fuerza bruta detectada desde {ip}\n")
+            reportar_evento(ip, "fuerza_bruta", usuario)
 
-        ip = ip_match.group(1) if ip_match else "unknown"
-        usuario = user_match.group(1) if user_match else "unknown"
+    elif "Accepted password" in linea:
+        reportar_evento(ip, "login_exitoso", usuario)
 
-        if "Failed password" in linea:
-            intentos_fallidos.append(linea.strip())
-            ips_atacantes.append(ip)
+# ========== MONITOREO CONTINUO ==========
+def monitorear(log_file):
+    print("=" * 55)
+    print("   LOGWATCHER v2.1 — MONITOREO EN TIEMPO REAL")
+    print("=" * 55)
+    print(f"   Monitoreando: {log_file}")
+    print(f"   Enviando eventos a: Grafana Loki")
+    print(f"   Umbral fuerza bruta: {UMBRAL_FUERZA_BRUTA} intentos")
+    print("=" * 55)
+    print("   Presiona Ctrl+C para detener\n")
 
-            # Rastrear qué usuarios intentó cada IP
-            if ip not in ips_por_usuario:
-                ips_por_usuario[ip] = set()
-            ips_por_usuario[ip].add(usuario)
+    # Abrir el archivo y moverse al final
+    with open(log_file, "r") as f:
+        # En modo tiempo real, ir al final del archivo
+        f.seek(0, os.SEEK_END)
 
-            reportar_evento(ip, "intento_fallido", usuario)
+        print("   Esperando nuevos eventos...\n")
 
-        elif "Accepted password" in linea:
-            logins_exitosos.append(linea.strip())
-            reportar_evento(ip, "login_exitoso", usuario)
+        while True:
+            linea = f.readline()
+            if linea:
+                linea = linea.strip()
+                if "Failed password" in linea or "Accepted password" in linea:
+                    procesar_linea(linea)
+            else:
+                time.sleep(0.5)  # Esperar medio segundo antes de volver a leer
 
-# ========== DETECTAR FUERZA BRUTA ==========
-conteo_ips = Counter(ips_atacantes)
-
-print("\n" + "=" * 55)
-print(f"Total intentos fallidos : {len(intentos_fallidos)}")
-print(f"Logins exitosos         : {len(logins_exitosos)}")
-
-print("\nIPs con intentos fallidos:")
-for ip, cantidad in conteo_ips.most_common():
-    if cantidad >= 3:
-        print(f"   {ip} — {cantidad} intentos  FUERZA BRUTA DETECTADA")
-        reportar_evento(ip, "fuerza_bruta", "multiple")
-    else:
-        print(f"   {ip} — {cantidad} intentos")
-
-print("\n" + "=" * 55)
-print("Eventos enviados a Grafana Loki.")
-print("=" * 55)
+# ========== INICIO ==========
+if __name__ == "__main__":
+    try:
+        monitorear(LOG_FILE)
+    except KeyboardInterrupt:
+        print("\n\n" + "=" * 55)
+        print("   LogWatcher detenido.")
+        print(f"   IPs monitoreadas: {len(intentos_por_ip)}")
+        for ip, cantidad in intentos_por_ip.most_common():
+            print(f"   {ip} — {cantidad} intentos")
+        print("=" * 55)
+    except FileNotFoundError:
+        print(f"\n  ERROR: No se encontró el archivo {LOG_FILE}")
+        print("  Verifica la ruta del log.") 
